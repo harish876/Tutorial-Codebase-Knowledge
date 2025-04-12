@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "incubator-resilientdb"
+title: "ResilientDB"
 nav_order: 14
 has_children: true
 ---
