@@ -1,10 +1,16 @@
+---
+layout: default
+title: "ResilientDB"
+nav_order: 12
+has_children: true
+---
+
 # Tutorial: incubator-resilientdb
 
 ResilientDB (incubator-resilientdb) is a **fault-tolerant** distributed database system.
-It uses multiple server copies (*replicas*) that communicate over a network to agree on the correct order of operations (transactions).
-This agreement process, called **consensus** (often using PBFT), ensures that the database remains *consistent and available* even if some replicas crash or behave incorrectly.
+It uses multiple server copies (_replicas_) that communicate over a network to agree on the correct order of operations (transactions).
+This agreement process, called **consensus** (often using PBFT), ensures that the database remains _consistent and available_ even if some replicas crash or behave incorrectly.
 External applications interact with the database through **client libraries** to store and retrieve data reliably.
-
 
 **Source Repository:** [None](None)
 
@@ -43,7 +49,6 @@ flowchart TD
 6. [Storage Layer (Storage / LevelDB / MemoryDB)](06_storage_layer__storage___leveldb___memorydb_.md)
 7. [Checkpointing & Recovery (CheckPointManager / Recovery)](07_checkpointing___recovery__checkpointmanager___recovery_.md)
 8. [ResilientDB Configuration (ResDBConfig)](08_resilientdb_configuration__resdbconfig_.md)
-
 
 ---
 
