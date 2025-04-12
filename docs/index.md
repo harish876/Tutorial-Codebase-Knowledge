@@ -30,6 +30,7 @@ This is a tutorial project of [Pocket Flow](https://github.com/The-Pocket/Pocket
 - [FastAPI](./FastAPI/index.md) - Create APIs at lightning speed with automatic docs that clients will love!
 - [Flask](./Flask/index.md) - Craft web apps with minimal code that scales from prototype to production!
 - [Google A2A](./Google A2A/index.md) - The universal language that lets AI agents collaborate across borders!
+- [incubator-resilientdb](./incubator-resilientdb/index.md) - Build fault-tolerant database systems that stay rock-solid even when servers crash!
 - [LangGraph](./LangGraph/index.md) - Design AI agents as flowcharts where each step remembers what happened before!
 - [LevelDB](./LevelDB/index.md) - Store data at warp speed with Google's engine that powers blockchains!
 - [MCP Python SDK](./MCP Python SDK/index.md) - Build powerful apps that communicate through an elegant protocol without sweating the details!
@@ -38,4 +39,3 @@ This is a tutorial project of [Pocket Flow](https://github.com/The-Pocket/Pocket
 - [Pydantic Core](./Pydantic Core/index.md) - Validate data at rocket speed with just Python type hints!
 - [Requests](./Requests/index.md) - Talk to the internet in Python with code so simple it feels like cheating!
 - [SmolaAgents](./SmolaAgents/index.md) - Build tiny AI agents that punch way above their weight class!
-
