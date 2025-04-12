@@ -1,3 +1,10 @@
+---
+layout: default
+title: "incubator-resilientdb"
+nav_order: 14
+has_children: true
+---
+
 # Tutorial: incubator-resilientdb
 
 ResilientDB (incubator-resilientdb) is a **fault-tolerant** distributed database system.
