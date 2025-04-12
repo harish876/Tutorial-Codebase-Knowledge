@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Storage Layer (Storage / LevelDB / MemoryDB)"
-parent: "incubator-resilientdb"
+parent: "ResilientDB"
 nav_order: 6
 ---
 

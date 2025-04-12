@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Consensus Management (ConsensusManager)"
-parent: "incubator-resilientdb"
+parent: "ResilientDB"
 nav_order: 3
 ---
 

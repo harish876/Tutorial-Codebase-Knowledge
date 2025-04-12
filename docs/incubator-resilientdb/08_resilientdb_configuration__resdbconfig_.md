@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "ResilientDB Configuration (ResDBConfig)"
-parent: "incubator-resilientdb"
+parent: "ResilientDB"
 nav_order: 8
 ---
 

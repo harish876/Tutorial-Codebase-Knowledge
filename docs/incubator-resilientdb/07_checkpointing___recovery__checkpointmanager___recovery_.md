@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Checkpointing & Recovery (CheckPointManager / Recovery)"
-parent: "incubator-resilientdb"
+parent: "ResilientDB"
 nav_order: 7
 ---
 

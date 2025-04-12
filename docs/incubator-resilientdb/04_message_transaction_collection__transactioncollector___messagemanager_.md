@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Message/Transaction Collection (TransactionCollector / MessageManager)"
-parent: "incubator-resilientdb"
+parent: "ResilientDB"
 nav_order: 4
 ---
 

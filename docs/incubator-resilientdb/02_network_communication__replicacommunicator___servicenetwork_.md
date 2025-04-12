@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Network Communication (ReplicaCommunicator / ServiceNetwork)"
-parent: "incubator-resilientdb"
+parent: "ResilientDB"
 nav_order: 2
 ---
 

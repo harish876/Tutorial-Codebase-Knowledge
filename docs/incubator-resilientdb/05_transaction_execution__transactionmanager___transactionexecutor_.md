@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Transaction Execution (TransactionManager / TransactionExecutor)"
-parent: "incubator-resilientdb"
+parent: "ResilientDB"
 nav_order: 5
 ---
 

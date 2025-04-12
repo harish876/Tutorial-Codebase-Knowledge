@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Client Interaction (KVClient / UTXOClient / ContractClient / TransactionConstructor)"
-parent: "incubator-resilientdb"
+parent: "ResilientDB"
 nav_order: 1
 ---
 
