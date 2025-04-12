@@ -1,43 +1,51 @@
+---
+layout: default
+title: "Network Communication (ReplicaCommunicator / ServiceNetwork)"
+parent: "incubator-resilientdb"
+nav_order: 2
+---
+
 # Chapter 2: Network Communication (ReplicaCommunicator / ServiceNetwork)
 
 In [Chapter 1: Client Interaction](01_client_interaction__kvclient___utxoclient___contractclient___transactionconstructor_.md), we learned how you, as a user or application, can talk to ResilientDB using special "Client" tools. You package your request (like storing data) and send it off using something like `KVClient`.
 
-But where does that request *go*? And how do the different computers (replicas) that make up the ResilientDB network talk to *each other* to process your request and agree on the result?
+But where does that request _go_? And how do the different computers (replicas) that make up the ResilientDB network talk to _each other_ to process your request and agree on the result?
 
 Welcome to Chapter 2! Here, we'll explore the **Network Communication** layer. This is the backbone that allows all the different parts of ResilientDB to connect and exchange messages.
 
 Think of it like the **postal service and telephone network** combined for ResilientDB:
 
-*   **Postal Service:** It needs to reliably send letters (messages like transaction proposals or votes) to the correct addresses (other replicas).
-*   **Telephone Network:** It needs a way to receive incoming calls (client requests or messages from other replicas) so the system can answer them.
+- **Postal Service:** It needs to reliably send letters (messages like transaction proposals or votes) to the correct addresses (other replicas).
+- **Telephone Network:** It needs a way to receive incoming calls (client requests or messages from other replicas) so the system can answer them.
 
 This chapter focuses on two key components:
 
-1.  `ReplicaCommunicator`: Handles sending messages *between* the ResilientDB replicas. (The Postal Service)
-2.  `ServiceNetwork`: Handles listening for and receiving *incoming* messages, both from clients and other replicas. (The Telephone Network Operator)
+1.  `ReplicaCommunicator`: Handles sending messages _between_ the ResilientDB replicas. (The Postal Service)
+2.  `ServiceNetwork`: Handles listening for and receiving _incoming_ messages, both from clients and other replicas. (The Telephone Network Operator)
 
 ## Why is Network Communication Important?
 
-ResilientDB is a *distributed* system. This means it doesn't run on just one computer. Instead, a team of computers (replicas) work together. To work together, they *must* communicate constantly over the network.
+ResilientDB is a _distributed_ system. This means it doesn't run on just one computer. Instead, a team of computers (replicas) work together. To work together, they _must_ communicate constantly over the network.
 
 Imagine you and your friends are trying to decide on a movie to watch tonight.
-*   You send a message proposing "Let's watch SciFi Movie X!" (like a client sending a transaction).
-*   Your friends need to receive this message.
-*   They discuss amongst themselves, sending messages back and forth like "I vote yes for SciFi Movie X!" or "How about Comedy Movie Y?" (like replicas exchanging votes for consensus).
-*   Eventually, enough friends agree, and someone sends a final message: "Okay, SciFi Movie X it is!" (like a replica sending a response back to the client).
+
+- You send a message proposing "Let's watch SciFi Movie X!" (like a client sending a transaction).
+- Your friends need to receive this message.
+- They discuss amongst themselves, sending messages back and forth like "I vote yes for SciFi Movie X!" or "How about Comedy Movie Y?" (like replicas exchanging votes for consensus).
+- Eventually, enough friends agree, and someone sends a final message: "Okay, SciFi Movie X it is!" (like a replica sending a response back to the client).
 
 Without a reliable way to send and receive these messages, the group could never agree! ResilientDB needs its own robust communication system for the replicas to coordinate.
 
 ## Sending Messages Between Replicas: `ReplicaCommunicator`
 
-The `ReplicaCommunicator` is responsible for sending messages *from* one replica *to* other replicas in the network. It's like the postal service handling outgoing mail.
+The `ReplicaCommunicator` is responsible for sending messages _from_ one replica _to_ other replicas in the network. It's like the postal service handling outgoing mail.
 
 **Key Jobs:**
 
 1.  **Knowing Addresses:** It knows the network addresses (IP and port) of all the other replicas it needs to talk to, based on the system configuration ([ResilientDB Configuration (ResDBConfig)](08_resilientdb_configuration__resdbconfig_.md)).
 2.  **Sending Methods:** It provides ways to send messages:
-    *   **Broadcast:** Send the same message to *all* other replicas (like sending a party invitation to everyone).
-    *   **Targeted Send:** Send a message to one *specific* replica (like sending a private note).
+    - **Broadcast:** Send the same message to _all_ other replicas (like sending a party invitation to everyone).
+    - **Targeted Send:** Send a message to one _specific_ replica (like sending a private note).
 3.  **Reliability (Under the Hood):** It often uses lower-level tools (like `NetChannel` or `AsyncReplicaClient`) to handle the actual network sending, potentially retrying if a message fails to send initially.
 4.  **Batching (Optional):** For efficiency, it might collect several small messages going to the same destination and send them together in one larger "package" (`BatchQueue`).
 
@@ -63,11 +71,11 @@ replica_communicator->BroadCast(my_transaction_proposal);
 replica_communicator->SendMessage(private_message, /* node_id = */ 2);
 ```
 
-This code shows how simple it is *to use* the `ReplicaCommunicator`. You create your message (`my_transaction_proposal` or `private_message`) and call either `BroadCast` or `SendMessage`. The communicator handles the rest!
+This code shows how simple it is _to use_ the `ReplicaCommunicator`. You create your message (`my_transaction_proposal` or `private_message`) and call either `BroadCast` or `SendMessage`. The communicator handles the rest!
 
 ## Listening for Incoming Messages: `ServiceNetwork`
 
-While `ReplicaCommunicator` handles *sending* messages, `ServiceNetwork` handles *receiving* them. Each replica runs a `ServiceNetwork` instance that acts like its ear to the world (or network, in this case!).
+While `ReplicaCommunicator` handles _sending_ messages, `ServiceNetwork` handles _receiving_ them. Each replica runs a `ServiceNetwork` instance that acts like its ear to the world (or network, in this case!).
 
 **Key Jobs:**
 
@@ -77,10 +85,11 @@ While `ReplicaCommunicator` handles *sending* messages, `ServiceNetwork` handles
 4.  **Passing the Message:** Once a complete message is received, it doesn't process the message itself. Instead, it passes the message off to the appropriate internal component (represented by `ServiceInterface`) for actual processing. This processing might involve adding the transaction to a queue ([Message/Transaction Collection (TransactionCollector / MessageManager)](04_message_transaction_collection__transactioncollector___messagemanager_.md)) or handling a consensus vote ([Consensus Management (ConsensusManager)](03_consensus_management__consensusmanager_.md)).
 
 **Analogy:** `ServiceNetwork` is like the central telephone operator for a company (a ResilientDB replica).
-*   It listens for the phone ringing (incoming network connections).
-*   It answers the call (accepts the connection).
-*   It takes the message ("Please connect me to Sales," or the actual transaction data).
-*   It transfers the call or message to the correct department (`ServiceInterface`).
+
+- It listens for the phone ringing (incoming network connections).
+- It answers the call (accepts the connection).
+- It takes the message ("Please connect me to Sales," or the actual transaction data).
+- It transfers the call or message to the correct department (`ServiceInterface`).
 
 **Simplified Setup Example:**
 
@@ -104,16 +113,16 @@ resdb::ServiceNetwork service_network(config, std::move(my_service_handler));
 service_network.Run(); // This starts the listening process
 ```
 
-This code creates the `ServiceNetwork`, telling it *where* to listen (`config`) and *who* to pass messages to (`my_service_handler`). Calling `Run()` starts the listening loop.
+This code creates the `ServiceNetwork`, telling it _where_ to listen (`config`) and _who_ to pass messages to (`my_service_handler`). Calling `Run()` starts the listening loop.
 
 ## How They Work Together: A Simple Flow
 
-Let's trace a *very* simplified path of a client request:
+Let's trace a _very_ simplified path of a client request:
 
 1.  **Client Sends:** You use `KVClient` (from Chapter 1) to send a `Set("mykey", "myvalue")` request. The client library sends this message over the network to one of the ResilientDB replicas (let's say Replica A).
 2.  **Replica A Receives:** Replica A's `ServiceNetwork` is listening. It receives the incoming connection and the `Set` request message.
 3.  **Replica A Passes Message:** `ServiceNetwork` passes the `Set` request to its internal `ServiceInterface`. This might trigger the consensus process.
-4.  **Replica A Broadcasts:** To get agreement, Replica A's consensus logic uses `ReplicaCommunicator` to *broadcast* the `Set` request (or a proposal based on it) to Replica B and Replica C.
+4.  **Replica A Broadcasts:** To get agreement, Replica A's consensus logic uses `ReplicaCommunicator` to _broadcast_ the `Set` request (or a proposal based on it) to Replica B and Replica C.
 5.  **Replicas B & C Receive:** The `ServiceNetwork` on Replica B and Replica C receive the broadcasted message from Replica A.
 6.  **Replicas B & C Process:** They pass the message to their own `ServiceInterface` handlers to process (e.g., validate the request, prepare to vote).
 7.  **Replicas B & C Send Votes:** Replicas B and C use their `ReplicaCommunicator` to send "vote" messages back to Replica A (and possibly others).
@@ -191,7 +200,7 @@ This shows `ReplicaCommunicator` iterating through target replicas, getting a co
 
 `ServiceNetwork` often uses an underlying "Acceptor" component (`Acceptor` or `AsyncAcceptor`) to handle the low-level network listening and connection acceptance.
 
-*   **`Acceptor` (Simpler, Blocking Style):** Listens for a connection, accepts it, reads one message, and puts the message (and the connection socket if a reply is needed) onto a queue (`input_queue_`).
+- **`Acceptor` (Simpler, Blocking Style):** Listens for a connection, accepts it, reads one message, and puts the message (and the connection socket if a reply is needed) onto a queue (`input_queue_`).
 
 ```cpp
 // Simplified concept from platform/rdbc/acceptor.cpp
@@ -226,7 +235,7 @@ void Acceptor::Run() {
 }
 ```
 
-*   **`ServiceNetwork` Processing from Queue:** Worker threads in `ServiceNetwork` then pick items from this queue.
+- **`ServiceNetwork` Processing from Queue:** Worker threads in `ServiceNetwork` then pick items from this queue.
 
 ```cpp
 // Simplified concept from platform/networkstrate/service_network.cpp
@@ -263,17 +272,17 @@ void ServiceNetwork::InputProcess() {
 
 This shows the hand-off: `Acceptor` receives raw data and puts it on a queue. `ServiceNetwork`'s worker threads take items from the queue and pass them to the `service_` object (which implements `ServiceInterface`) for actual application-level processing.
 
-*   **`AsyncAcceptor` (More Complex, Non-Blocking):** Uses asynchronous I/O (like Boost.Asio) to handle many connections concurrently without blocking threads per connection. When data arrives, it calls a callback function (`AcceptorHandler` in `ServiceNetwork`) which then usually puts the data onto the `input_queue_`. The end result for `InputProcess` is similar.
+- **`AsyncAcceptor` (More Complex, Non-Blocking):** Uses asynchronous I/O (like Boost.Asio) to handle many connections concurrently without blocking threads per connection. When data arrives, it calls a callback function (`AcceptorHandler` in `ServiceNetwork`) which then usually puts the data onto the `input_queue_`. The end result for `InputProcess` is similar.
 
 ## Conclusion
 
 You've now seen the vital communication layer of ResilientDB!
 
-*   We learned that `ReplicaCommunicator` acts like the **postal service**, responsible for *sending* messages (like proposals and votes) between the different replica computers. It knows the addresses and can broadcast or send targeted messages.
-*   We saw that `ServiceNetwork` acts like the **telephone network operator**, responsible for *listening* for and *receiving* incoming messages, whether from clients or other replicas. It passes these messages on for processing.
-*   These two components work together, using lower-level network tools, to allow the distributed replicas of ResilientDB to coordinate effectively.
+- We learned that `ReplicaCommunicator` acts like the **postal service**, responsible for _sending_ messages (like proposals and votes) between the different replica computers. It knows the addresses and can broadcast or send targeted messages.
+- We saw that `ServiceNetwork` acts like the **telephone network operator**, responsible for _listening_ for and _receiving_ incoming messages, whether from clients or other replicas. It passes these messages on for processing.
+- These two components work together, using lower-level network tools, to allow the distributed replicas of ResilientDB to coordinate effectively.
 
-So, the replicas can now send and receive messages reliably. But what exactly are they saying to each other? How do they use these messages to *agree* on the order of transactions and the state of the database? That's the magic of **consensus**, and it's the topic of our next chapter!
+So, the replicas can now send and receive messages reliably. But what exactly are they saying to each other? How do they use these messages to _agree_ on the order of transactions and the state of the database? That's the magic of **consensus**, and it's the topic of our next chapter!
 
 **Next:** [Chapter 3: Consensus Management (ConsensusManager)](03_consensus_management__consensusmanager_.md)
 

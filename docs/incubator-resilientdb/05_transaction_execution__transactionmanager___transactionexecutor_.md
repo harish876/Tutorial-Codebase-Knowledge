@@ -1,23 +1,32 @@
+---
+layout: default
+title: "Transaction Execution (TransactionManager / TransactionExecutor)"
+parent: "incubator-resilientdb"
+nav_order: 5
+---
+
 # Chapter 5: Transaction Execution (TransactionManager / TransactionExecutor)
 
 In the previous chapter, [Chapter 4: Message/Transaction Collection (TransactionCollector / MessageManager)](04_message_transaction_collection__transactioncollector___messagemanager_.md), we saw how ResilientDB meticulously collects and organizes all the messages related to a specific transaction until consensus is reached and the transaction is declared `READY_EXECUTE`. It's like all the managers have finally approved an important company decision (like purchasing new equipment).
 
-But approval is just one step! Someone actually needs to *act* on that decision – place the order, update the inventory, and record the purchase in the company's books. Similarly, once ResilientDB replicas agree on a transaction (e.g., "Store the key 'UserScore' with the value '1000'"), something needs to actually *perform* that change in the database state.
+But approval is just one step! Someone actually needs to _act_ on that decision – place the order, update the inventory, and record the purchase in the company's books. Similarly, once ResilientDB replicas agree on a transaction (e.g., "Store the key 'UserScore' with the value '1000'"), something needs to actually _perform_ that change in the database state.
 
 Welcome to Chapter 5! We'll explore the **Transaction Execution** layer. This is where the agreed-upon transactions meet the actual database, making the changes permanent.
 
 ## The Need for Execution: Making Changes Happen
 
 Imagine ResilientDB is a shared, super-secure accounting ledger run by a committee (the replicas).
-*   A user submits an invoice (a transaction request, see [Chapter 1](01_client_interaction__kvclient___utxoclient___contractclient___transactionconstructor_.md)).
-*   The committee discusses and votes until they agree the invoice is valid and in the correct order (consensus, [Chapter 3](03_consensus_management__consensusmanager_.md)).
-*   The approved invoice is carefully filed and tracked ([Chapter 4](04_message_transaction_collection__transactioncollector___messagemanager_.md)).
+
+- A user submits an invoice (a transaction request, see [Chapter 1](01_client_interaction__kvclient___utxoclient___contractclient___transactionconstructor_.md)).
+- The committee discusses and votes until they agree the invoice is valid and in the correct order (consensus, [Chapter 3](03_consensus_management__consensusmanager_.md)).
+- The approved invoice is carefully filed and tracked ([Chapter 4](04_message_transaction_collection__transactioncollector___messagemanager_.md)).
 
 Now what? The ledger hasn't actually been updated yet! We need an **accountant** to take the approved invoice and officially record the transaction in the ledger (the database state). This "accountant" role is played by the Transaction Execution layer.
 
 This layer ensures that:
+
 1.  Transactions are executed in the exact order determined by consensus.
-2.  The correct logic is applied based on the *type* of transaction (e.g., updating a key-value store is different from transferring a digital token).
+2.  The correct logic is applied based on the _type_ of transaction (e.g., updating a key-value store is different from transferring a digital token).
 3.  The database state accurately reflects the history of agreed-upon operations.
 
 ## Meet the Execution Team: `TransactionExecutor` and `TransactionManager`
@@ -25,16 +34,17 @@ This layer ensures that:
 Two key components work together to handle execution:
 
 1.  **`TransactionExecutor`:** The **Execution Coordinator**.
-    *   **Job:** Receives the finalized, ordered transactions from the consensus/collection layer ([Chapter 4](04_message_transaction_collection__transactioncollector___messagemanager_.md)). It manages the flow, ensuring transactions are executed sequentially (or sometimes out-of-order if configured) and handles sending responses back.
-    *   **Analogy:** Think of this as the **accounting department head**. They receive the approved invoices from management, ensure they are processed in the right order (by sequence number), and pass them to the right specialist accountant. They also coordinate sending confirmation receipts (responses) back.
-    *   **Function:** Takes committed `Request` objects, puts them in an internal queue, orders them strictly by sequence number, and calls upon a `TransactionManager` to perform the actual work for each transaction. It also handles notifying other parts of the system about progress.
+
+    - **Job:** Receives the finalized, ordered transactions from the consensus/collection layer ([Chapter 4](04_message_transaction_collection__transactioncollector___messagemanager_.md)). It manages the flow, ensuring transactions are executed sequentially (or sometimes out-of-order if configured) and handles sending responses back.
+    - **Analogy:** Think of this as the **accounting department head**. They receive the approved invoices from management, ensure they are processed in the right order (by sequence number), and pass them to the right specialist accountant. They also coordinate sending confirmation receipts (responses) back.
+    - **Function:** Takes committed `Request` objects, puts them in an internal queue, orders them strictly by sequence number, and calls upon a `TransactionManager` to perform the actual work for each transaction. It also handles notifying other parts of the system about progress.
 
 2.  **`TransactionManager`:** The **Execution Specialist**.
-    *   **Job:** Defines *how* to execute a specific *type* of transaction. ResilientDB supports different data models (Key-Value, UTXO, Smart Contracts), and each needs different execution logic. `TransactionManager` is an *abstract base class* (like a job description template), and specific implementations handle the details.
-    *   **Analogy:** This is the **specialist accountant**. One accountant might handle Accounts Payable (like KV Set/Get), another handles Payroll (like UTXO transfers), and another handles complex project budgets (like Smart Contracts). Each knows the specific rules for their domain.
-    *   **Function:** Provides the concrete `ExecuteBatch` or `ExecuteData` method that the `TransactionExecutor` calls. Implementations like `KVExecutor`, `UTXOExecutor`, and `ContractTransactionManager` inherit from `TransactionManager` and contain the logic to interact with the underlying storage or state for their specific data type.
+    - **Job:** Defines _how_ to execute a specific _type_ of transaction. ResilientDB supports different data models (Key-Value, UTXO, Smart Contracts), and each needs different execution logic. `TransactionManager` is an _abstract base class_ (like a job description template), and specific implementations handle the details.
+    - **Analogy:** This is the **specialist accountant**. One accountant might handle Accounts Payable (like KV Set/Get), another handles Payroll (like UTXO transfers), and another handles complex project budgets (like Smart Contracts). Each knows the specific rules for their domain.
+    - **Function:** Provides the concrete `ExecuteBatch` or `ExecuteData` method that the `TransactionExecutor` calls. Implementations like `KVExecutor`, `UTXOExecutor`, and `ContractTransactionManager` inherit from `TransactionManager` and contain the logic to interact with the underlying storage or state for their specific data type.
 
-The `TransactionExecutor` coordinates *when* to execute, while the specific `TransactionManager` implementation decides *how* to execute.
+The `TransactionExecutor` coordinates _when_ to execute, while the specific `TransactionManager` implementation decides _how_ to execute.
 
 ## How It Works: Executing a Key-Value Transaction
 
@@ -50,6 +60,7 @@ Let's follow a simple `Set("myKey", "myValue")` transaction after it has been ag
         executor_->Commit(std::move(main_request_));
     }
     ```
+
     This hands off the approved transaction to the execution coordinator.
 
 2.  **Executor Enqueues:** `TransactionExecutor::Commit` receives `request_101` and pushes it onto an internal queue (`commit_queue_`) waiting to be ordered.
@@ -65,7 +76,7 @@ Let's follow a simple `Set("myKey", "myValue")` transaction after it has been ag
     }
     ```
 
-3.  **Ordering Thread:** A background thread (`ordering_thread_`) in `TransactionExecutor` monitors `commit_queue_`. It pulls `request_101`. It checks if `101` is the *next expected sequence number* (`next_execute_seq_`). If `next_execute_seq_` is indeed `101`, the thread moves `request_101` to another queue (`execute_queue_`) and increments `next_execute_seq_` to `102`. (If `101` arrived but `next_execute_seq_` was still `100`, it would wait.)
+3.  **Ordering Thread:** A background thread (`ordering_thread_`) in `TransactionExecutor` monitors `commit_queue_`. It pulls `request_101`. It checks if `101` is the _next expected sequence number_ (`next_execute_seq_`). If `next_execute_seq_` is indeed `101`, the thread moves `request_101` to another queue (`execute_queue_`) and increments `next_execute_seq_` to `102`. (If `101` arrived but `next_execute_seq_` was still `100`, it would wait.)
 
     ```cpp
     // Inside TransactionExecutor::OrderMessage() - simplified logic
@@ -110,7 +121,7 @@ Let's follow a simple `Set("myKey", "myValue")` transaction after it has been ag
     }
     ```
 
-6.  **Manager Delegates (KVExecutor):** The `transaction_manager_` pointer in `TransactionExecutor` actually points to a specific implementation, like `KVExecutor`. The base `TransactionManager::ExecuteBatch` often just loops through sub-requests and calls `ExecuteData`. The *derived* class (`KVExecutor`) provides the real logic for `ExecuteData`.
+6.  **Manager Delegates (KVExecutor):** The `transaction_manager_` pointer in `TransactionExecutor` actually points to a specific implementation, like `KVExecutor`. The base `TransactionManager::ExecuteBatch` often just loops through sub-requests and calls `ExecuteData`. The _derived_ class (`KVExecutor`) provides the real logic for `ExecuteData`.
 
     ```cpp
     // Base class default implementation
@@ -202,56 +213,59 @@ This diagram shows the handoff from collection (`TC`) to the executor (`TxExec`)
 
 ResilientDB uses the `TransactionManager` interface to support different application types. Each inherits from the base `TransactionManager` and provides its own `ExecuteData` or `ExecuteBatch` logic:
 
-*   **`KVExecutor` (`executor/kv/kv_executor.h`, `.cpp`):**
-    *   Handles Key-Value operations (`SET`, `GET`, `GETRANGE`, etc.).
-    *   Parses `KVRequest`.
-    *   Interacts with `Storage` using methods like `SetValue`, `GetValue`.
+- **`KVExecutor` (`executor/kv/kv_executor.h`, `.cpp`):**
 
-    ```cpp
-    // From executor/kv/kv_executor.h
-    class KVExecutor : public TransactionManager {
-     public:
-      KVExecutor(std::unique_ptr<Storage> storage);
-      std::unique_ptr<std::string> ExecuteData(const std::string& request) override;
-      // ... other methods ...
-     private:
-      std::unique_ptr<Storage> storage_; // Holds the storage implementation
-    };
-    ```
+  - Handles Key-Value operations (`SET`, `GET`, `GETRANGE`, etc.).
+  - Parses `KVRequest`.
+  - Interacts with `Storage` using methods like `SetValue`, `GetValue`.
 
-*   **`UTXOExecutor` (`executor/utxo/executor/utxo_executor.h`, `.cpp`):**
-    *   Handles transactions based on the Unspent Transaction Output model (like Bitcoin).
-    *   Parses `UTXORequest`.
-    *   Interacts with specialized UTXO managers (`Transaction`, `Wallet`) which likely use the `Storage` layer underneath.
+  ```cpp
+  // From executor/kv/kv_executor.h
+  class KVExecutor : public TransactionManager {
+   public:
+    KVExecutor(std::unique_ptr<Storage> storage);
+    std::unique_ptr<std::string> ExecuteData(const std::string& request) override;
+    // ... other methods ...
+   private:
+    std::unique_ptr<Storage> storage_; // Holds the storage implementation
+  };
+  ```
 
-    ```cpp
-    // From executor/utxo/executor/utxo_executor.h
-    class UTXOExecutor : public TransactionManager {
-     public:
-      UTXOExecutor(const Config& config, Transaction* transaction, Wallet* wallet);
-      std::unique_ptr<std::string> ExecuteData(const std::string& request) override;
-     private:
-      Transaction* transaction_; // Manages UTXO transaction logic
-    };
-    ```
+- **`UTXOExecutor` (`executor/utxo/executor/utxo_executor.h`, `.cpp`):**
 
-*   **`ContractTransactionManager` (`executor/contract/executor/contract_executor.h`, `.cpp`):**
-    *   Handles deploying and executing smart contracts.
-    *   Parses `contract::Request`.
-    *   Interacts with `ContractManager` and `AddressManager` to manage contract state and execution environments (like WASM).
+  - Handles transactions based on the Unspent Transaction Output model (like Bitcoin).
+  - Parses `UTXORequest`.
+  - Interacts with specialized UTXO managers (`Transaction`, `Wallet`) which likely use the `Storage` layer underneath.
 
-    ```cpp
-    // From executor/contract/executor/contract_executor.h
-    class ContractTransactionManager : public TransactionManager {
-     public:
-      ContractTransactionManager(void);
-      std::unique_ptr<std::string> ExecuteData(const std::string& request) override;
-      // ... other methods ...
-     private:
-      std::unique_ptr<ContractManager> contract_manager_; // Manages contract logic
-      std::unique_ptr<AddressManager> address_manager_; // Manages addresses
-    };
-    ```
+  ```cpp
+  // From executor/utxo/executor/utxo_executor.h
+  class UTXOExecutor : public TransactionManager {
+   public:
+    UTXOExecutor(const Config& config, Transaction* transaction, Wallet* wallet);
+    std::unique_ptr<std::string> ExecuteData(const std::string& request) override;
+   private:
+    Transaction* transaction_; // Manages UTXO transaction logic
+  };
+  ```
+
+- **`ContractTransactionManager` (`executor/contract/executor/contract_executor.h`, `.cpp`):**
+
+  - Handles deploying and executing smart contracts.
+  - Parses `contract::Request`.
+  - Interacts with `ContractManager` and `AddressManager` to manage contract state and execution environments (like WASM).
+
+  ```cpp
+  // From executor/contract/executor/contract_executor.h
+  class ContractTransactionManager : public TransactionManager {
+   public:
+    ContractTransactionManager(void);
+    std::unique_ptr<std::string> ExecuteData(const std::string& request) override;
+    // ... other methods ...
+   private:
+    std::unique_ptr<ContractManager> contract_manager_; // Manages contract logic
+    std::unique_ptr<AddressManager> address_manager_; // Manages addresses
+  };
+  ```
 
 The beauty of this design is that the `TransactionExecutor` doesn't need to know the specifics of KV, UTXO, or Contracts. It just needs a `TransactionManager` object and calls its standard `ExecuteBatch` method. The specific implementation handles the rest. This is configured when ResilientDB starts, based on the desired mode of operation (see [Chapter 8: ResilientDB Configuration (ResDBConfig)](08_resilientdb_configuration__resdbconfig_.md)).
 
@@ -259,9 +273,9 @@ The beauty of this design is that the `TransactionExecutor` doesn't need to know
 
 You've now seen how ResilientDB takes transactions that have been agreed upon and actually applies their changes to the database state!
 
-*   We learned that the **`TransactionExecutor`** acts as the **coordinator**, receiving committed transactions, ensuring they execute in the correct order (using sequence numbers), and managing the overall execution flow.
-*   We met the **`TransactionManager`** interface and its specific implementations (`KVExecutor`, `UTXOExecutor`, `ContractTransactionManager`) which act as **specialists**, knowing *how* to execute different types of transactions (Key-Value, UTXO, Smart Contract).
-*   We traced the journey of a transaction from the `Commit` call in `TransactionCollector` through the internal queues and threads of `TransactionExecutor`, finally reaching the specific `TransactionManager` logic that updates the state.
+- We learned that the **`TransactionExecutor`** acts as the **coordinator**, receiving committed transactions, ensuring they execute in the correct order (using sequence numbers), and managing the overall execution flow.
+- We met the **`TransactionManager`** interface and its specific implementations (`KVExecutor`, `UTXOExecutor`, `ContractTransactionManager`) which act as **specialists**, knowing _how_ to execute different types of transactions (Key-Value, UTXO, Smart Contract).
+- We traced the journey of a transaction from the `Commit` call in `TransactionCollector` through the internal queues and threads of `TransactionExecutor`, finally reaching the specific `TransactionManager` logic that updates the state.
 
 The `TransactionManager` implementations like `KVExecutor` rely heavily on an underlying mechanism to actually store and retrieve the data persistently. How does ResilientDB handle saving data to disk or memory reliably? That's the topic of our next chapter, where we'll explore the Storage Layer!
 

@@ -1,6 +1,13 @@
+---
+layout: default
+title: "Message/Transaction Collection (TransactionCollector / MessageManager)"
+parent: "incubator-resilientdb"
+nav_order: 4
+---
+
 # Chapter 4: Message/Transaction Collection (TransactionCollector / MessageManager)
 
-In [Chapter 3: Consensus Management (ConsensusManager)](03_consensus_management__consensusmanager_.md), we saw how the replicas in ResilientDB use a process like PBFT (Pre-Prepare, Prepare, Commit) to agree on the order of transactions. This involves a *lot* of messages flying back and forth between replicas for *each* transaction!
+In [Chapter 3: Consensus Management (ConsensusManager)](03_consensus_management__consensusmanager_.md), we saw how the replicas in ResilientDB use a process like PBFT (Pre-Prepare, Prepare, Commit) to agree on the order of transactions. This involves a _lot_ of messages flying back and forth between replicas for _each_ transaction!
 
 Imagine dozens of transactions being processed concurrently. For transaction #51, Replica A needs to collect Prepare votes. For transaction #52, it might be collecting Commit votes. For transaction #53, it just received the Pre-Prepare proposal. How does a replica keep track of all these different messages for all these different transactions without getting confused?
 
@@ -16,11 +23,11 @@ Think about the PBFT process from Chapter 3:
 
 Each replica needs to:
 
-*   Group all messages related to the *same* sequence number `N`.
-*   Count how many `Prepare` messages it has received for `N`.
-*   Count how many `Commit` messages it has received for `N`.
-*   Determine when *enough* messages (`2f+1`) of a certain type have arrived to move to the next stage (e.g., from Prepared to Committed).
-*   Finally, trigger the execution of the transaction for sequence `N` once it's fully confirmed (Committed).
+- Group all messages related to the _same_ sequence number `N`.
+- Count how many `Prepare` messages it has received for `N`.
+- Count how many `Commit` messages it has received for `N`.
+- Determine when _enough_ messages (`2f+1`) of a certain type have arrived to move to the next stage (e.g., from Prepared to Committed).
+- Finally, trigger the execution of the transaction for sequence `N` once it's fully confirmed (Committed).
 
 Doing this efficiently for potentially thousands of transactions simultaneously requires a dedicated system.
 
@@ -29,14 +36,15 @@ Doing this efficiently for potentially thousands of transactions simultaneously 
 ResilientDB uses two main components for this task:
 
 1.  **`TransactionCollector`:** The **Project Manager** for a Single Transaction.
-    *   **Job:** Manages the lifecycle of *one specific transaction sequence number*.
-    *   **Analogy:** Imagine a project manager assigned to build *one specific feature* (e.g., "Add Login Button"). They collect all approvals (Prepare/Commit messages) related *only* to that feature from different team members (replicas).
-    *   **Function:** Stores the initial proposal (Pre-Prepare), collects incoming Prepare and Commit messages for its sequence number, counts them, tracks the consensus state (e.g., None -> ReadyPrepare -> ReadyCommit -> ReadyExecute -> Executed), and holds onto the messages as potential proof.
+
+    - **Job:** Manages the lifecycle of _one specific transaction sequence number_.
+    - **Analogy:** Imagine a project manager assigned to build _one specific feature_ (e.g., "Add Login Button"). They collect all approvals (Prepare/Commit messages) related _only_ to that feature from different team members (replicas).
+    - **Function:** Stores the initial proposal (Pre-Prepare), collects incoming Prepare and Commit messages for its sequence number, counts them, tracks the consensus state (e.g., None -> ReadyPrepare -> ReadyCommit -> ReadyExecute -> Executed), and holds onto the messages as potential proof.
 
 2.  **`MessageManager`:** The **Department Head** Overseeing All Projects.
-    *   **Job:** Manages the *entire collection* of `TransactionCollector` instances.
-    *   **Analogy:** This is like the head of the project management department. When a new approval form (consensus message) comes in, the department head looks at which project (sequence number) it belongs to and forwards it to the correct project manager (`TransactionCollector`). They also coordinate the start of new projects (assigning sequence numbers) and signal when a project is truly finished and ready for launch (triggering execution).
-    *   **Function:** Receives incoming consensus messages from the [Consensus Manager](03_consensus_management__consensusmanager_.md), finds the appropriate `TransactionCollector` for the message's sequence number (often using a helper like `LockFreeCollectorPool`), passes the message to that collector, and interfaces with the [Transaction Execution](05_transaction_execution__transactionmanager___transactionexecutor_.md) layer to commit finalized transactions. It also assigns new sequence numbers for client requests.
+    - **Job:** Manages the _entire collection_ of `TransactionCollector` instances.
+    - **Analogy:** This is like the head of the project management department. When a new approval form (consensus message) comes in, the department head looks at which project (sequence number) it belongs to and forwards it to the correct project manager (`TransactionCollector`). They also coordinate the start of new projects (assigning sequence numbers) and signal when a project is truly finished and ready for launch (triggering execution).
+    - **Function:** Receives incoming consensus messages from the [Consensus Manager](03_consensus_management__consensusmanager_.md), finds the appropriate `TransactionCollector` for the message's sequence number (often using a helper like `LockFreeCollectorPool`), passes the message to that collector, and interfaces with the [Transaction Execution](05_transaction_execution__transactionmanager___transactionexecutor_.md) layer to commit finalized transactions. It also assigns new sequence numbers for client requests.
 
 Together, `MessageManager` routes the incoming messages, and `TransactionCollector` does the detailed work of counting and state tracking for each individual transaction sequence.
 
@@ -47,13 +55,15 @@ Let's trace how messages for a specific transaction (say, sequence number `N=100
 **Scenario:** Replica A is processing transaction `N=100`.
 
 1.  **Pre-Prepare Arrives:**
-    *   The `PRE-PREPARE` message for `seq=100` arrives at Replica A via the [Network Communication](02_network_communication__replicacommunicator___servicenetwork_.md) layer.
-    *   It's passed to the [Consensus Manager](03_consensus_management__consensusmanager_.md).
-    *   The `ConsensusManager` calls `MessageManager::AddConsensusMsg` with the message.
+
+    - The `PRE-PREPARE` message for `seq=100` arrives at Replica A via the [Network Communication](02_network_communication__replicacommunicator___servicenetwork_.md) layer.
+    - It's passed to the [Consensus Manager](03_consensus_management__consensusmanager_.md).
+    - The `ConsensusManager` calls `MessageManager::AddConsensusMsg` with the message.
 
 2.  **MessageManager Finds the Collector:**
-    *   `MessageManager` needs the `TransactionCollector` responsible for `seq=100`. It likely uses a helper `LockFreeCollectorPool`.
-    *   `LockFreeCollectorPool::GetCollector(100)` calculates an index (e.g., `100 % pool_size`) and returns a pointer to the correct `TransactionCollector` instance.
+
+    - `MessageManager` needs the `TransactionCollector` responsible for `seq=100`. It likely uses a helper `LockFreeCollectorPool`.
+    - `LockFreeCollectorPool::GetCollector(100)` calculates an index (e.g., `100 % pool_size`) and returns a pointer to the correct `TransactionCollector` instance.
 
     ```cpp
     // Simplified from platform/consensus/ordering/pbft/lock_free_collector_pool.cpp
@@ -65,12 +75,14 @@ Let's trace how messages for a specific transaction (say, sequence number `N=100
       return collector_[idx].get();
     }
     ```
-    *   This code quickly finds the right collector using bitwise math, which is faster than division.
+
+    - This code quickly finds the right collector using bitwise math, which is faster than division.
 
 3.  **TransactionCollector Adds Pre-Prepare:**
-    *   `MessageManager` calls `TransactionCollector::AddRequest` on the collector for `seq=100`, passing the `PRE-PREPARE` message.
-    *   `TransactionCollector` stores this as the "main request" for `seq=100`.
-    *   It updates its internal state, potentially moving from `None` to `READY_PREPARE`.
+
+    - `MessageManager` calls `TransactionCollector::AddRequest` on the collector for `seq=100`, passing the `PRE-PREPARE` message.
+    - `TransactionCollector` stores this as the "main request" for `seq=100`.
+    - It updates its internal state, potentially moving from `None` to `READY_PREPARE`.
 
     ```cpp
     // Simplified from platform/consensus/ordering/pbft/transaction_collector.cpp
@@ -95,14 +107,16 @@ Let's trace how messages for a specific transaction (say, sequence number `N=100
       return 0; // Default success
     }
     ```
-    *   This simplified code checks sequence numbers and stores the main proposal.
+
+    - This simplified code checks sequence numbers and stores the main proposal.
 
 4.  **Prepare Messages Arrive:**
-    *   Several `PREPARE` messages for `seq=100` arrive from other replicas.
-    *   Each goes through `MessageManager::AddConsensusMsg` -> `LockFreeCollectorPool::GetCollector(100)` -> `TransactionCollector::AddRequest`.
-    *   Inside `AddRequest` (the `else` branch now):
-        *   The `TransactionCollector` increments a counter for `PREPARE` messages received for the *specific hash* of the proposal. It often uses a bitset to track *which* replicas sent a Prepare.
-        *   It calls a helper function (or a callback passed by `MessageManager`) to check if the state should change.
+
+    - Several `PREPARE` messages for `seq=100` arrive from other replicas.
+    - Each goes through `MessageManager::AddConsensusMsg` -> `LockFreeCollectorPool::GetCollector(100)` -> `TransactionCollector::AddRequest`.
+    - Inside `AddRequest` (the `else` branch now):
+      - The `TransactionCollector` increments a counter for `PREPARE` messages received for the _specific hash_ of the proposal. It often uses a bitset to track _which_ replicas sent a Prepare.
+      - It calls a helper function (or a callback passed by `MessageManager`) to check if the state should change.
 
     ```cpp
     // Simplified continuation of TransactionCollector::AddRequest
@@ -134,21 +148,25 @@ Let's trace how messages for a specific transaction (say, sequence number `N=100
     ```
 
 5.  **TransactionCollector Updates State (Prepare -> Commit):**
-    *   The `MaybeUpdateStatus` function (or callback) checks: "Is the current status `READY_PREPARE` AND have we received enough (`>= 2f+1`) `PREPARE` messages?"
-    *   If yes, it atomically updates the `status_` from `READY_PREPARE` to `READY_COMMIT`.
-    *   The `TransactionCollector` is now considered "Prepared" for `seq=100`.
+
+    - The `MaybeUpdateStatus` function (or callback) checks: "Is the current status `READY_PREPARE` AND have we received enough (`>= 2f+1`) `PREPARE` messages?"
+    - If yes, it atomically updates the `status_` from `READY_PREPARE` to `READY_COMMIT`.
+    - The `TransactionCollector` is now considered "Prepared" for `seq=100`.
 
 6.  **Commit Messages Arrive:**
-    *   `COMMIT` messages for `seq=100` arrive and are routed to the same `TransactionCollector`.
-    *   `AddRequest` counts them similarly.
+
+    - `COMMIT` messages for `seq=100` arrive and are routed to the same `TransactionCollector`.
+    - `AddRequest` counts them similarly.
 
 7.  **TransactionCollector Updates State (Commit -> Execute):**
-    *   `MaybeUpdateStatus` checks: "Is the current status `READY_COMMIT` AND have we received enough (`>= 2f+1`) `COMMIT` messages?"
-    *   If yes, it atomically updates the `status_` to `READY_EXECUTE`.
+
+    - `MaybeUpdateStatus` checks: "Is the current status `READY_COMMIT` AND have we received enough (`>= 2f+1`) `COMMIT` messages?"
+    - If yes, it atomically updates the `status_` to `READY_EXECUTE`.
 
 8.  **TransactionCollector Triggers Execution:**
-    *   Detecting the transition to `READY_EXECUTE`, the `AddRequest` logic calls `TransactionCollector::Commit()`.
-    *   `Commit()` performs final checks and then calls the `TransactionExecutor` (provided during setup) to actually execute the transaction associated with the main request.
+
+    - Detecting the transition to `READY_EXECUTE`, the `AddRequest` logic calls `TransactionCollector::Commit()`.
+    - `Commit()` performs final checks and then calls the `TransactionExecutor` (provided during setup) to actually execute the transaction associated with the main request.
 
     ```cpp
     // Simplified from platform/consensus/ordering/pbft/transaction_collector.cpp
@@ -170,7 +188,8 @@ Let's trace how messages for a specific transaction (say, sequence number `N=100
       return 0; // Success
     }
     ```
-    *   This function ensures the transaction is executed only once by atomically changing the state and then passes the request to the [Transaction Execution](05_transaction_execution__transactionmanager___transactionexecutor_.md) layer.
+
+    - This function ensures the transaction is executed only once by atomically changing the state and then passes the request to the [Transaction Execution](05_transaction_execution__transactionmanager___transactionexecutor_.md) layer.
 
 **Visualization:**
 
@@ -241,7 +260,7 @@ MessageManager::MessageManager(
 }
 ```
 
-The `LockFreeCollectorPool` creates a vector of `TransactionCollector` objects. The size is typically a power of two, allowing for efficient indexing using bitwise AND (`& mask_`). It uses a clever trick: the vector size is actually *twice* the conceptual capacity. When sequence number `seq` is finalized, the pool proactively re-initializes the collector at index `(seq % capacity) + capacity` to be ready for sequence number `seq + capacity`. This avoids needing locks when switching collectors for sequence numbers.
+The `LockFreeCollectorPool` creates a vector of `TransactionCollector` objects. The size is typically a power of two, allowing for efficient indexing using bitwise AND (`& mask_`). It uses a clever trick: the vector size is actually _twice_ the conceptual capacity. When sequence number `seq` is finalized, the pool proactively re-initializes the collector at index `(seq % capacity) + capacity` to be ready for sequence number `seq + capacity`. This avoids needing locks when switching collectors for sequence numbers.
 
 ```cpp
 // Simplified from platform/consensus/ordering/pbft/lock_free_collector_pool.cpp
@@ -279,10 +298,10 @@ This pooling mechanism allows `MessageManager` to quickly find the right `Transa
 
 You've now explored the vital organizational layer of ResilientDB's consensus process!
 
-*   We learned that during consensus, many messages (`PRE-PREPARE`, `PREPARE`, `COMMIT`) are exchanged for each transaction.
-*   The **`TransactionCollector`** acts like a dedicated **project manager** for a *single transaction sequence number*. It gathers related messages, counts them, tracks the consensus state (ReadyPrepare, ReadyCommit, ReadyExecute), and holds proof.
-*   The **`MessageManager`** acts as the **department head**, overseeing all `TransactionCollector`s. It routes incoming consensus messages to the correct collector (using `LockFreeCollectorPool`) and triggers the final execution step.
-*   This system efficiently manages the flow of messages, ensuring that transactions proceed through the consensus stages correctly and are executed only when fully agreed upon.
+- We learned that during consensus, many messages (`PRE-PREPARE`, `PREPARE`, `COMMIT`) are exchanged for each transaction.
+- The **`TransactionCollector`** acts like a dedicated **project manager** for a _single transaction sequence number_. It gathers related messages, counts them, tracks the consensus state (ReadyPrepare, ReadyCommit, ReadyExecute), and holds proof.
+- The **`MessageManager`** acts as the **department head**, overseeing all `TransactionCollector`s. It routes incoming consensus messages to the correct collector (using `LockFreeCollectorPool`) and triggers the final execution step.
+- This system efficiently manages the flow of messages, ensuring that transactions proceed through the consensus stages correctly and are executed only when fully agreed upon.
 
 Now that we understand how transactions are proposed ([Chapter 1](01_client_interaction__kvclient___utxoclient___contractclient___transactionconstructor_.md)), communicated ([Chapter 2](02_network_communication__replicacommunicator___servicenetwork_.md)), agreed upon ([Chapter 3](03_consensus_management__consensusmanager_.md)), and collected ([Chapter 4](04_message_transaction_collection__transactioncollector___messagemanager_.md)), what happens when a transaction is finally marked `READY_EXECUTE`? How is the actual work (like changing data in the database) performed?
 

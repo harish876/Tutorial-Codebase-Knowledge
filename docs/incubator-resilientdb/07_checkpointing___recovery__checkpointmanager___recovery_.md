@@ -1,23 +1,32 @@
+---
+layout: default
+title: "Checkpointing & Recovery (CheckPointManager / Recovery)"
+parent: "incubator-resilientdb"
+nav_order: 7
+---
+
 # Chapter 7: Checkpointing & Recovery (CheckPointManager / Recovery)
 
 In the previous chapter, [Chapter 6: Storage Layer (Storage / LevelDB / MemoryDB)](06_storage_layer__storage___leveldb___memorydb_.md), we learned how ResilientDB actually saves data using components like `ResLevelDB` (for disk storage) or `MemoryDB` (for memory storage). This ensures that when we execute a transaction like `Set("myKey", "myValue")`, the change is recorded.
 
-But what happens if a replica (one of the computers running ResilientDB) suddenly crashes or needs to be restarted? When it comes back online, how does it catch up with all the transactions it missed? Simply replaying *every single transaction* from the very beginning could take a very long time, especially if the system has been running for weeks or months! Also, the log of all past messages ([Chapter 4](04_message_transaction_collection__transactioncollector___messagemanager_.md)) would grow forever, eventually filling up the disk.
+But what happens if a replica (one of the computers running ResilientDB) suddenly crashes or needs to be restarted? When it comes back online, how does it catch up with all the transactions it missed? Simply replaying _every single transaction_ from the very beginning could take a very long time, especially if the system has been running for weeks or months! Also, the log of all past messages ([Chapter 4](04_message_transaction_collection__transactioncollector___messagemanager_.md)) would grow forever, eventually filling up the disk.
 
 Welcome to Chapter 7! We'll explore how ResilientDB solves these problems using **Checkpointing and Recovery**.
 
 Think of it like playing a long video game:
-*   You wouldn't want to restart from the very beginning every time you stop playing. You **save your progress** periodically (this is **Checkpointing**).
-*   If the game crashes, you can load your last save game and maybe replay just the last few actions you took before the crash (this is **Recovery**).
+
+- You wouldn't want to restart from the very beginning every time you stop playing. You **save your progress** periodically (this is **Checkpointing**).
+- If the game crashes, you can load your last save game and maybe replay just the last few actions you took before the crash (this is **Recovery**).
 
 ResilientDB uses two main components for this:
+
 1.  `CheckPointManager`: Coordinates taking periodic "save points" (checkpoints) of the database state that all replicas agree on.
 2.  `Recovery`: Manages writing down important actions (like consensus messages) into a journal (log file) and uses these logs along with checkpoints to restore a node's state after a restart.
 
 ## Why Checkpointing and Recovery?
 
 1.  **Prevent Infinite Logs:** The consensus process ([Chapter 3](03_consensus_management__consensusmanager_.md)) generates many messages (Pre-Prepare, Prepare, Commit) for each transaction. Storing all these messages forever would consume huge amounts of disk space. Checkpointing allows replicas to agree that "we all know the state up to transaction #1,000,000 is correct," so they can safely delete older messages and log entries before that point.
-2.  **Speed Up Recovery:** If a node crashes and restarts, loading the latest agreed-upon checkpoint is much faster than re-processing every transaction from the beginning. The node only needs to replay the transactions and messages that occurred *after* the last checkpoint using the recovery logs.
+2.  **Speed Up Recovery:** If a node crashes and restarts, loading the latest agreed-upon checkpoint is much faster than re-processing every transaction from the beginning. The node only needs to replay the transactions and messages that occurred _after_ the last checkpoint using the recovery logs.
 
 **Analogy:** Imagine taking meeting minutes. Instead of keeping one massive document with every word ever spoken, you periodically summarize the key decisions and outcomes (a checkpoint). If someone joins late, they can read the latest summary and then catch up on the discussion since that summary (recovery log) instead of reading the entire history.
 
@@ -29,7 +38,7 @@ The `CheckPointManager` is responsible for orchestrating the process of creating
 
 1.  **Initiate Checkpoints:** At regular intervals (e.g., every `N` transactions, defined by `CheckPointWaterMark` in the configuration), it calculates a "fingerprint" (a hash) of the current database state.
 2.  **Exchange Proofs:** It broadcasts this hash in a `CHECKPOINT` message to other replicas. It also collects `CHECKPOINT` messages from others.
-3.  **Determine Stability:** It checks if enough replicas (`2f+1`) have sent `CHECKPOINT` messages agreeing on the *same hash* for the *same sequence number*.
+3.  **Determine Stability:** It checks if enough replicas (`2f+1`) have sent `CHECKPOINT` messages agreeing on the _same hash_ for the _same sequence number_.
 4.  **Announce Stable Checkpoint:** Once agreement is reached, it declares that sequence number as the new `StableCheckpoint`. This is the "save point" everyone agrees on.
 5.  **Inform Others:** It provides the latest stable checkpoint number (`GetStableCheckpoint`) to other components like `Recovery` so they know which old logs can be cleaned up.
 
@@ -66,6 +75,7 @@ Let's say the checkpoint interval (`CheckPointWaterMark`) is 100 sequences.
       replica_communicator_->BroadCast(*checkpoint_request);
     }
     ```
+
     This function creates the `CHECKPOINT` message, including the sequence number and hash, signs it, and broadcasts it using the `ReplicaCommunicator` from [Chapter 2](02_network_communication__replicacommunicator___servicenetwork_.md).
 
 4.  **Process Incoming Checkpoints:** Each `CheckPointManager` receives `CHECKPOINT` messages from others via its `ProcessCheckPoint` method.
@@ -103,6 +113,7 @@ Let's say the checkpoint interval (`CheckPointWaterMark`) is 100 sequences.
       return 0;
     }
     ```
+
     This function receives a `CHECKPOINT` message, validates it, and records which replica sent which hash for which sequence number.
 
 5.  **Check for Stability:** A background thread (`UpdateStableCheckPointStatus`) periodically checks if any sequence number has received enough matching proofs.
@@ -154,6 +165,7 @@ Let's say the checkpoint interval (`CheckPointWaterMark`) is 100 sequences.
       }
     }
     ```
+
     This thread checks the `sender_ckpt_` map. If it finds a `(seq, hash)` pair that has been confirmed by at least `2f+1` replicas, and this `seq` is higher than the current stable checkpoint, it updates `current_stable_seq_`.
 
 6.  **Result:** `current_stable_seq_` now holds the sequence number of the latest agreed-upon save point (e.g., 100).
@@ -162,8 +174,8 @@ Let's say the checkpoint interval (`CheckPointWaterMark`) is 100 sequences.
 
 The `Recovery` component handles two main jobs:
 
-1.  **Write-Ahead Logging (Journaling):** It writes important consensus messages (`PRE-PREPARE`, `PREPARE`, `COMMIT`, sometimes others) to a log file *before* they are fully processed. This is called a Write-Ahead Log (WAL). If the system crashes mid-operation, this log ensures we know what was happening.
-2.  **State Restoration:** When a replica starts, the `Recovery` component reads the last known stable checkpoint (obtained from `CheckPointManager`) and then reads the WAL files *after* that checkpoint. It replays the messages found in the WAL to bring the replica's consensus state back up to speed quickly.
+1.  **Write-Ahead Logging (Journaling):** It writes important consensus messages (`PRE-PREPARE`, `PREPARE`, `COMMIT`, sometimes others) to a log file _before_ they are fully processed. This is called a Write-Ahead Log (WAL). If the system crashes mid-operation, this log ensures we know what was happening.
+2.  **State Restoration:** When a replica starts, the `Recovery` component reads the last known stable checkpoint (obtained from `CheckPointManager`) and then reads the WAL files _after_ that checkpoint. It replays the messages found in the WAL to bring the replica's consensus state back up to speed quickly.
 
 **Analogy:** The `Recovery` component is like keeping a detailed diary (WAL) of every important step you take after your last game save (checkpoint). If the game crashes, you load the save, read your diary from that point onwards, and quickly re-do those steps to get back to where you were.
 
@@ -233,6 +245,7 @@ void Recovery::Flush() {
   fsync(fd_); // Ensure data is physically written to disk
 }
 ```
+
 `AddRequest` filters messages. `WriteLog` serializes the message and its context (like the signature) and calls `AppendData`. `AppendData` adds the data (with its length) to a `buffer_`. `Flush` writes the buffer content to the current log file (`fd_`) on disk, prefixed by the total buffer size. This length prefixing helps when reading the log back later.
 
 **2. Log File Management (Triggered by Checkpoints):**
@@ -283,6 +296,7 @@ void Recovery::FinishFile(int64_t seq) {
   OpenFile(file_path_);
 }
 ```
+
 This ensures that log files are neatly packaged based on the stable checkpoints. `GenerateFile` creates filenames encoding the checkpoint sequence and the range of sequence numbers contained within.
 
 **3. Replaying Logs on Restart:**
@@ -357,7 +371,8 @@ void Recovery::ReadLogsFromFiles(
   LOG(INFO) << "Finished reading recovery log: " << path;
 }
 ```
-`ReadLogs` first determines the latest stable checkpoint (`GetRecoveryFiles` finds the checkpoint number from the log filenames). It then iterates through the necessary log files. `ReadLogsFromFiles` reads the log data chunk by chunk, parses the messages, and crucially, uses the provided `call_back` function to send any message with a sequence number *greater than* the `ckpt` back to the consensus layer ([Chapter 3](03_consensus_management__consensusmanager_.md)) for processing. This rebuilds the node's state efficiently.
+
+`ReadLogs` first determines the latest stable checkpoint (`GetRecoveryFiles` finds the checkpoint number from the log filenames). It then iterates through the necessary log files. `ReadLogsFromFiles` reads the log data chunk by chunk, parses the messages, and crucially, uses the provided `call_back` function to send any message with a sequence number _greater than_ the `ckpt` back to the consensus layer ([Chapter 3](03_consensus_management__consensusmanager_.md)) for processing. This rebuilds the node's state efficiently.
 
 ## How They Work Together
 
@@ -406,15 +421,15 @@ sequenceDiagram
     Recov-->>-NodeA: Recovery Complete
 ```
 
-This diagram shows the interplay: `Recovery` logs messages during normal operation. `CheckPointManager` determines stable checkpoints. `Recovery` uses this information to finalize old log files. On restart, `Recovery` reads logs *after* the last stable checkpoint and replays them via the callback to quickly catch up.
+This diagram shows the interplay: `Recovery` logs messages during normal operation. `CheckPointManager` determines stable checkpoints. `Recovery` uses this information to finalize old log files. On restart, `Recovery` reads logs _after_ the last stable checkpoint and replays them via the callback to quickly catch up.
 
 ## Conclusion
 
 Checkpointing and Recovery are essential for the long-term stability and efficiency of ResilientDB.
 
-*   **Checkpointing (`CheckPointManager`)** provides periodic, agreed-upon "save points" (stable checkpoints) of the database state. This allows old logs and consensus messages to be safely discarded, preventing infinite growth.
-*   **Recovery (`Recovery`)** uses Write-Ahead Logging (WAL) to record important consensus messages. After a crash, it uses the latest stable checkpoint and replays the messages from the WAL files since that checkpoint to quickly restore the node's state.
-*   Together, they ensure that replicas can recover efficiently from failures without replaying the entire history and that log storage remains manageable.
+- **Checkpointing (`CheckPointManager`)** provides periodic, agreed-upon "save points" (stable checkpoints) of the database state. This allows old logs and consensus messages to be safely discarded, preventing infinite growth.
+- **Recovery (`Recovery`)** uses Write-Ahead Logging (WAL) to record important consensus messages. After a crash, it uses the latest stable checkpoint and replays the messages from the WAL files since that checkpoint to quickly restore the node's state.
+- Together, they ensure that replicas can recover efficiently from failures without replaying the entire history and that log storage remains manageable.
 
 We've now journeyed through the core components of ResilientDB, from client interaction to storage and recovery. But how do we configure all these components? How do we tell ResilientDB which nodes are part of the network, which consensus algorithm to use, or where to store its data? That's the topic of our final chapter!
 

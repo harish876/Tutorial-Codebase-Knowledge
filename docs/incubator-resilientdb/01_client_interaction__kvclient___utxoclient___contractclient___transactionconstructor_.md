@@ -1,17 +1,24 @@
+---
+layout: default
+title: "Client Interaction (KVClient / UTXOClient / ContractClient / TransactionConstructor)"
+parent: "incubator-resilientdb"
+nav_order: 1
+---
+
 # Chapter 1: Client Interaction (KVClient / UTXOClient / ContractClient / TransactionConstructor)
 
 Welcome to your first step in understanding ResilientDB! Imagine ResilientDB is a powerful, secure, and reliable database system run by a team of computers working together. How do you, as a user or an application developer, talk to this system? You can't just shout commands into the void! You need a defined way to communicate, like using a customer service counter at a bank or an API (Application Programming Interface) for a website.
 
 This chapter introduces the **Client Interaction** layer of ResilientDB. It's the set of tools and libraries that act as that "customer service counter" or API, allowing you to:
 
-*   Send requests (we call these **transactions**) to the ResilientDB network.
-*   Receive results back from the network.
+- Send requests (we call these **transactions**) to the ResilientDB network.
+- Receive results back from the network.
 
 Think of it as the official "front door" for interacting with ResilientDB, hiding all the complex machinery working behind the scenes.
 
 ## Why Do We Need Special Clients?
 
-ResilientDB isn't just one program running on one computer. It's a *distributed* system, meaning multiple computers (called replicas or nodes) work together to store data and agree on changes. Sending a simple request like "store this value" involves:
+ResilientDB isn't just one program running on one computer. It's a _distributed_ system, meaning multiple computers (called replicas or nodes) work together to store data and agree on changes. Sending a simple request like "store this value" involves:
 
 1.  Formatting your request correctly.
 2.  Finding the right node(s) in the network to send it to.
@@ -26,19 +33,21 @@ Doing all this manually would be complicated and error-prone! The Client Interac
 ResilientDB offers different types of clients, each specialized for a particular kind of interaction, just like a bank might have different counters for deposits, loans, or inquiries.
 
 1.  **`KVClient` (Key-Value Client):**
-    *   **What it does:** Allows you to store and retrieve simple data as key-value pairs, like a dictionary or a basic lookup table. You provide a unique `key` (like a word) and associate a `value` (like its definition) with it.
-    *   **Analogy:** Think of it as a super-reliable set of digital storage lockers. Each locker has a unique key, and you can put something (a value) inside or check what's inside using the key.
-    *   **Use Case:** Storing user preferences, configuration settings, simple records.
+
+    - **What it does:** Allows you to store and retrieve simple data as key-value pairs, like a dictionary or a basic lookup table. You provide a unique `key` (like a word) and associate a `value` (like its definition) with it.
+    - **Analogy:** Think of it as a super-reliable set of digital storage lockers. Each locker has a unique key, and you can put something (a value) inside or check what's inside using the key.
+    - **Use Case:** Storing user preferences, configuration settings, simple records.
 
 2.  **`UTXOClient` (Unspent Transaction Output Client):**
-    *   **What it does:** Designed for managing and transferring digital assets or tokens within ResilientDB, using the UTXO model (common in cryptocurrencies like Bitcoin).
-    *   **Analogy:** This is like a bank teller specifically for transferring funds. You tell them which "coins" (UTXOs) you want to send and who should receive them.
-    *   **Use Case:** Building applications involving token transfers or digital asset management.
+
+    - **What it does:** Designed for managing and transferring digital assets or tokens within ResilientDB, using the UTXO model (common in cryptocurrencies like Bitcoin).
+    - **Analogy:** This is like a bank teller specifically for transferring funds. You tell them which "coins" (UTXOs) you want to send and who should receive them.
+    - **Use Case:** Building applications involving token transfers or digital asset management.
 
 3.  **`ContractClient` (Smart Contract Client):**
-    *   **What it does:** Interacts with "smart contracts" deployed on the ResilientDB network. Smart contracts are like small programs stored on the blockchain that automatically execute predefined rules and logic.
-    *   **Analogy:** Imagine a sophisticated vending machine. You don't just store items; you interact with the machine's programmed logic (select item, insert payment, receive item and change) by calling specific functions.
-    *   **Use Case:** Running decentralized applications (dApps), automating complex agreements, enforcing business logic on the blockchain.
+    - **What it does:** Interacts with "smart contracts" deployed on the ResilientDB network. Smart contracts are like small programs stored on the blockchain that automatically execute predefined rules and logic.
+    - **Analogy:** Imagine a sophisticated vending machine. You don't just store items; you interact with the machine's programmed logic (select item, insert payment, receive item and change) by calling specific functions.
+    - **Use Case:** Running decentralized applications (dApps), automating complex agreements, enforcing business logic on the blockchain.
 
 ## The Foundation: `TransactionConstructor`
 
@@ -46,7 +55,7 @@ While we have specialized clients (`KVClient`, `UTXOClient`, `ContractClient`), 
 
 The `TransactionConstructor` is a fundamental building block (a base class in programming terms) that provides this core functionality. Each specific client (`KVClient`, etc.) builds upon `TransactionConstructor` to handle the details of its specific task.
 
-*   **Analogy:** Think of `TransactionConstructor` as providing the standard request form and the basic instructions for mailing it. The specific clients (`KVClient`, etc.) know how to fill out the form for their particular request (storing data, transferring assets, calling a contract).
+- **Analogy:** Think of `TransactionConstructor` as providing the standard request form and the basic instructions for mailing it. The specific clients (`KVClient`, etc.) know how to fill out the form for their particular request (storing data, transferring assets, calling a contract).
 
 ```cpp
 // Simplified view from interface/rdbc/transaction_constructor.h
@@ -174,7 +183,7 @@ std::unique_ptr<std::string> KVClient::Get(const std::string& key) {
 }
 ```
 
-This time, `KVClient` creates a `KVRequest` with the `GET` command and the key. It then calls the `SendRequest` method from `TransactionConstructor` that *waits* for a response and puts the result into the `response` object. If successful, it extracts the value from the `KVResponse` and returns it.
+This time, `KVClient` creates a `KVRequest` with the `GET` command and the key. It then calls the `SendRequest` method from `TransactionConstructor` that _waits_ for a response and puts the result into the `response` object. If successful, it extracts the value from the `KVResponse` and returns it.
 
 **Step 4: Under the Hood (Simplified Flow)**
 
@@ -259,12 +268,12 @@ This Python code uses the `pybind_kv` module, which internally calls the C++ `KV
 
 You've learned about the crucial Client Interaction layer in ResilientDB. It's the bridge between your application and the powerful distributed network.
 
-*   We saw that specialized clients like `KVClient`, `UTXOClient`, and `ContractClient` provide easy-to-use interfaces for different tasks.
-*   We learned that `TransactionConstructor` is the underlying engine that handles the common work of preparing and sending requests.
-*   We walked through a simple `KVClient` example (`Set` and `Get`) to see how the client hides the complexity of interacting with the distributed system.
-*   We saw how Python bindings make these C++ clients accessible to Python developers.
+- We saw that specialized clients like `KVClient`, `UTXOClient`, and `ContractClient` provide easy-to-use interfaces for different tasks.
+- We learned that `TransactionConstructor` is the underlying engine that handles the common work of preparing and sending requests.
+- We walked through a simple `KVClient` example (`Set` and `Get`) to see how the client hides the complexity of interacting with the distributed system.
+- We saw how Python bindings make these C++ clients accessible to Python developers.
 
-Now that you understand *how* to formulate a request and initiate communication using clients, you might be wondering: what happens next? How does that request actually travel across the network to the ResilientDB nodes?
+Now that you understand _how_ to formulate a request and initiate communication using clients, you might be wondering: what happens next? How does that request actually travel across the network to the ResilientDB nodes?
 
 That's exactly what we'll cover in the next chapter!
 

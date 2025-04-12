@@ -1,3 +1,10 @@
+---
+layout: default
+title: "ResilientDB Configuration (ResDBConfig)"
+parent: "incubator-resilientdb"
+nav_order: 8
+---
+
 # Chapter 8: ResilientDB Configuration (ResDBConfig)
 
 You've journeyed through the heart of ResilientDB! We started with how applications talk to the system ([Chapter 1: Client Interaction](01_client_interaction__kvclient___utxoclient___contractclient___transactionconstructor_.md)), how messages travel ([Chapter 2: Network Communication](02_network_communication__replicacommunicator___servicenetwork_.md)), how agreement is reached ([Chapter 3: Consensus Management](03_consensus_management__consensusmanager_.md)), how messages are organized ([Chapter 4: Message/Transaction Collection](04_message_transaction_collection__transactioncollector___messagemanager_.md)), how transactions are executed ([Chapter 5: Transaction Execution](05_transaction_execution__transactionmanager___transactionexecutor_.md)), how data is stored ([Chapter 6: Storage Layer](06_storage_layer__storage___leveldb___memorydb_.md)), and how the system saves progress and recovers from crashes ([Chapter 7: Checkpointing & Recovery](07_checkpointing___recovery__checkpointmanager___recovery_.md)).
@@ -9,14 +16,16 @@ Welcome to the final chapter of our core concepts tour! We'll explore **Resilien
 ## Why Do We Need Configuration?
 
 Imagine you're setting up a new computer game to play online with friends. Before you can start, you need to configure some settings:
-*   What's your username?
-*   What are the server addresses of your friends' games?
-*   What are the game rules (difficulty level, time limits)?
+
+- What's your username?
+- What are the server addresses of your friends' games?
+- What are the game rules (difficulty level, time limits)?
 
 Similarly, before a ResilientDB node (replica) or client can start working, it needs initial setup instructions. It needs to know:
-*   Who are the other participants (replicas) in the network?
-*   How can I identify myself securely?
-*   What are the "rules of engagement" for communication and agreement?
+
+- Who are the other participants (replicas) in the network?
+- How can I identify myself securely?
+- What are the "rules of engagement" for communication and agreement?
 
 This setup information is provided through **configuration**.
 
@@ -33,8 +42,9 @@ Without this configuration, a node would be isolated and wouldn't know how to co
 The `ResDBConfig` object bundles several key pieces of information:
 
 1.  **Who are the participants? (`replicas_`, `self_info_`)**
-    *   It contains a list of `ReplicaInfo` objects. Each `ReplicaInfo` stores the network address (IP and port) and ID of one replica in the system.
-    *   It also stores the `ReplicaInfo` for the current node itself (`self_info_`). This tells the node its own identity and listening address.
+
+    - It contains a list of `ReplicaInfo` objects. Each `ReplicaInfo` stores the network address (IP and port) and ID of one replica in the system.
+    - It also stores the `ReplicaInfo` for the current node itself (`self_info_`). This tells the node its own identity and listening address.
 
     ```protobuf
     // Simplified from platform/proto/replica_info.proto
@@ -45,11 +55,13 @@ The `ResDBConfig` object bundles several key pieces of information:
       // CertificateInfo certificate_info = 4; // Public key/cert (optional)
     }
     ```
-    *   **Why?** This allows components like the [ReplicaCommunicator](02_network_communication__replicacommunicator___servicenetwork_.md) to know where to send messages and the [ServiceNetwork](02_network_communication__replicacommunicator___servicenetwork_.md) to know where to listen.
+
+    - **Why?** This allows components like the [ReplicaCommunicator](02_network_communication__replicacommunicator___servicenetwork_.md) to know where to send messages and the [ServiceNetwork](02_network_communication__replicacommunicator___servicenetwork_.md) to know where to listen.
 
 2.  **How do I identify myself securely? (`private_key_`, `public_key_cert_info_`)**
-    *   It holds the node's **private key** (`KeyInfo`). This is kept secret and used to digitally sign outgoing messages, proving they came from this node.
-    *   It often holds the node's **public key certificate** (`CertificateInfo`). This contains the public key (which corresponds to the private key) and information verifying the node's identity. This certificate can be shared so others can verify the node's signatures.
+
+    - It holds the node's **private key** (`KeyInfo`). This is kept secret and used to digitally sign outgoing messages, proving they came from this node.
+    - It often holds the node's **public key certificate** (`CertificateInfo`). This contains the public key (which corresponds to the private key) and information verifying the node's identity. This certificate can be shared so others can verify the node's signatures.
 
     ```protobuf
     // Simplified from common/proto/signature_info.proto
@@ -65,14 +77,16 @@ The `ResDBConfig` object bundles several key pieces of information:
       // ... details omitted ...
     }
     ```
-    *   **Why?** This is crucial for security. Signatures prevent others from impersonating a node and ensure message integrity, which is vital for consensus algorithms like PBFT ([Chapter 3](03_consensus_management__consensusmanager_.md)).
+
+    - **Why?** This is crucial for security. Signatures prevent others from impersonating a node and ensure message integrity, which is vital for consensus algorithms like PBFT ([Chapter 3](03_consensus_management__consensusmanager_.md)).
 
 3.  **What are the rules of the game? (`config_data_`)**
-    *   This holds a `ResConfigData` object, which contains many operational parameters:
-        *   **Consensus Settings:** Timeouts for various phases (like view changes), batch sizes for transactions, number of worker threads.
-        *   **Fault Tolerance:** The configuration implicitly defines `f`, the maximum number of faulty replicas the system can tolerate. `ResDBConfig` calculates values like `2f+1` (`GetMinDataReceiveNum`) needed for PBFT voting thresholds.
-        *   **Feature Flags:** Enable/disable features like checkpointing ([Chapter 7](07_checkpointing___recovery__checkpointmanager___recovery_.md)), signature verification, performance monitoring.
-        *   **Checkpointing:** How often to take checkpoints (`checkpoint_water_mark_`), where to store logs (`checkpoint_logging_path_`).
+
+    - This holds a `ResConfigData` object, which contains many operational parameters:
+      - **Consensus Settings:** Timeouts for various phases (like view changes), batch sizes for transactions, number of worker threads.
+      - **Fault Tolerance:** The configuration implicitly defines `f`, the maximum number of faulty replicas the system can tolerate. `ResDBConfig` calculates values like `2f+1` (`GetMinDataReceiveNum`) needed for PBFT voting thresholds.
+      - **Feature Flags:** Enable/disable features like checkpointing ([Chapter 7](07_checkpointing___recovery__checkpointmanager___recovery_.md)), signature verification, performance monitoring.
+      - **Checkpointing:** How often to take checkpoints (`checkpoint_water_mark_`), where to store logs (`checkpoint_logging_path_`).
 
     ```cpp
     // Simplified from platform/config/resdb_config.cpp
@@ -83,43 +97,45 @@ The `ResDBConfig` object bundles several key pieces of information:
       return std::max(2 * f + 1, 1);
     }
     ```
-    *   **Why?** These parameters tune the performance, resilience, and behavior of the ResilientDB network. They define how the different components we've discussed should operate.
+
+    - **Why?** These parameters tune the performance, resilience, and behavior of the ResilientDB network. They define how the different components we've discussed should operate.
 
 ## Setting Up: Loading the Configuration
 
 How does the `ResDBConfig` object get filled with all this information? Usually, it's loaded from files when a node or client starts up.
 
 1.  **The Config Files:**
-    *   **Replica List (`config.config` or similar):** A simple text file listing the ID, IP, and port of each replica.
-        ```
-        # Example config.config
-        0 127.0.0.1 12345
-        1 127.0.0.1 12346
-        2 127.0.0.1 12347
-        3 127.0.0.1 12348
-        ```
-    *   **Main Configuration (`config.json`):** A JSON file containing more detailed settings, including performance parameters, feature flags, and potentially replica info grouped by region.
-        ```json
-        // Example simplified config.json fragment
-        {
-          "self_region_id": 1,
-          "region": [
-            {
-              "region_id": 1,
-              "replica_info": [
-                {"id": 0, "ip": "127.0.0.1", "port": 12345},
-                {"id": 1, "ip": "127.0.0.1", "port": 12346},
-                {"id": 2, "ip": "127.0.0.1", "port": 12347},
-                {"id": 3, "ip": "127.0.0.1", "port": 12348}
-              ]
-            }
-          ],
-          "max_process_txn": 1024,
-          "view_change_timeout_ms": 30000,
-          "is_performance_running": false
-        }
-        ```
-    *   **Key/Certificate Files:** Separate binary files containing the node's private key (`private.key`) and certificate (`cert.cert`).
+
+    - **Replica List (`config.config` or similar):** A simple text file listing the ID, IP, and port of each replica.
+      ```
+      # Example config.config
+      0 127.0.0.1 12345
+      1 127.0.0.1 12346
+      2 127.0.0.1 12347
+      3 127.0.0.1 12348
+      ```
+    - **Main Configuration (`config.json`):** A JSON file containing more detailed settings, including performance parameters, feature flags, and potentially replica info grouped by region.
+      ```json
+      // Example simplified config.json fragment
+      {
+        "self_region_id": 1,
+        "region": [
+          {
+            "region_id": 1,
+            "replica_info": [
+              { "id": 0, "ip": "127.0.0.1", "port": 12345 },
+              { "id": 1, "ip": "127.0.0.1", "port": 12346 },
+              { "id": 2, "ip": "127.0.0.1", "port": 12347 },
+              { "id": 3, "ip": "127.0.0.1", "port": 12348 }
+            ]
+          }
+        ],
+        "max_process_txn": 1024,
+        "view_change_timeout_ms": 30000,
+        "is_performance_running": false
+      }
+      ```
+    - **Key/Certificate Files:** Separate binary files containing the node's private key (`private.key`) and certificate (`cert.cert`).
 
 2.  **Helper Functions (`resdb_config_utils.cpp`):** ResilientDB provides utility functions to read these files and create the `ResDBConfig` object.
 
@@ -178,49 +194,56 @@ How does the `ResDBConfig` object get filled with all this information? Usually,
                                           private_key, cert_info);
     }
     ```
+
     This code shows functions reading the different file types (text list, JSON, binary keys) and using the data to construct a `ResDBConfig` object.
 
 ## Using the Configuration
 
 Once created, the `ResDBConfig` object is passed around to many other components when they are initialized.
 
-*   **Clients ([Chapter 1](01_client_interaction__kvclient___utxoclient___contractclient___transactionconstructor_.md)):**
-    ```cpp
-    // Simplified client creation
-    #include "platform/config/resdb_config.h"
-    #include "interface/kv/kv_client.h"
+- **Clients ([Chapter 1](01_client_interaction__kvclient___utxoclient___contractclient___transactionconstructor_.md)):**
 
-    ResDBConfig client_config = GenerateResDBConfig("config.config"); // Load replica list
-    resdb::KVClient kv_client(client_config); // Pass config to client
+  ```cpp
+  // Simplified client creation
+  #include "platform/config/resdb_config.h"
+  #include "interface/kv/kv_client.h"
 
-    // kv_client now knows replica addresses from client_config
-    ```
-    The client uses `config.GetReplicaInfos()` to know where to send requests.
+  ResDBConfig client_config = GenerateResDBConfig("config.config"); // Load replica list
+  resdb::KVClient kv_client(client_config); // Pass config to client
 
-*   **Network Components ([Chapter 2](02_network_communication__replicacommunicator___servicenetwork_.md)):**
-    ```cpp
-    // Simplified setup
-    ResDBConfig node_config = GenerateResDBConfig(/* JSON, key, cert files */);
+  // kv_client now knows replica addresses from client_config
+  ```
 
-    // ReplicaCommunicator needs addresses of others
-    ReplicaCommunicator comm(node_config, /* ... */);
+  The client uses `config.GetReplicaInfos()` to know where to send requests.
 
-    // ServiceNetwork needs own listening address
-    ServiceNetwork service(node_config, /* service handler */);
-    service.Run();
-    ```
-    `ReplicaCommunicator` uses `node_config.GetReplicaInfos()` and `ServiceNetwork` uses `node_config.GetSelfInfo()`.
+- **Network Components ([Chapter 2](02_network_communication__replicacommunicator___servicenetwork_.md)):**
 
-*   **Consensus ([Chapter 3](03_consensus_management__consensusmanager_.md)):**
-    ```cpp
-    // Simplified setup
-    ConsensusManagerPBFT consensus_manager(node_config, /* executor, etc. */);
+  ```cpp
+  // Simplified setup
+  ResDBConfig node_config = GenerateResDBConfig(/* JSON, key, cert files */);
 
-    // Inside consensus logic...
-    int required_votes = node_config.GetMinDataReceiveNum(); // Gets 2f+1
-    // Check if enough votes received...
-    ```
-    The `ConsensusManager` uses the config to get crucial values like the number of required votes (`2f+1`) and timeouts.
+  // ReplicaCommunicator needs addresses of others
+  ReplicaCommunicator comm(node_config, /* ... */);
+
+  // ServiceNetwork needs own listening address
+  ServiceNetwork service(node_config, /* service handler */);
+  service.Run();
+  ```
+
+  `ReplicaCommunicator` uses `node_config.GetReplicaInfos()` and `ServiceNetwork` uses `node_config.GetSelfInfo()`.
+
+- **Consensus ([Chapter 3](03_consensus_management__consensusmanager_.md)):**
+
+  ```cpp
+  // Simplified setup
+  ConsensusManagerPBFT consensus_manager(node_config, /* executor, etc. */);
+
+  // Inside consensus logic...
+  int required_votes = node_config.GetMinDataReceiveNum(); // Gets 2f+1
+  // Check if enough votes received...
+  ```
+
+  The `ConsensusManager` uses the config to get crucial values like the number of required votes (`2f+1`) and timeouts.
 
 The `ResDBConfig` object acts as a read-only container passed to components needing setup parameters.
 
@@ -284,6 +307,7 @@ class ResDBConfig {
 
 } // namespace resdb
 ```
+
 The header shows the constructors used to create the object and various `Get...` methods that components call to retrieve the configuration values they need. The actual data is stored in private member variables.
 
 ```cpp
@@ -314,15 +338,16 @@ ResDBConfig::ResDBConfig(const ResConfigData& config_data,
   // ... set other defaults ...
 }
 ```
+
 The constructor initializes the member variables from the passed-in data. It also handles extracting the correct replica list from the potentially region-based `ResConfigData` and sets sensible defaults for parameters if they are missing.
 
 ## Conclusion
 
 You've now learned about `ResDBConfig`, the essential **settings menu** for ResilientDB.
 
-*   It holds crucial setup information: **network addresses** (`ReplicaInfo`), **security keys** (`KeyInfo`, `CertificateInfo`), and **operational parameters** (`ResConfigData`).
-*   It's typically loaded from **configuration files** (text, JSON, binary keys) using helper functions when a node or client starts.
-*   The `ResDBConfig` object is passed to various components during initialization, providing them with the necessary parameters to function correctly within the ResilientDB network.
+- It holds crucial setup information: **network addresses** (`ReplicaInfo`), **security keys** (`KeyInfo`, `CertificateInfo`), and **operational parameters** (`ResConfigData`).
+- It's typically loaded from **configuration files** (text, JSON, binary keys) using helper functions when a node or client starts.
+- The `ResDBConfig` object is passed to various components during initialization, providing them with the necessary parameters to function correctly within the ResilientDB network.
 
 This concludes our tour of the core concepts behind `incubator-resilientdb`. From sending a client request to configuring the entire network, you now have a foundational understanding of how the main pieces fit together. While each component has much more depth, this overview should provide a solid starting point for further exploration or contribution!
 
